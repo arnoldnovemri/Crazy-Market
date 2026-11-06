@@ -1,0 +1,6 @@
+{
+  "name": "Crazy Market: 3D Social Arithmetic",
+  "description": "First-person 3D Grade 7 Social Arithmetic math adventure exploring cost price, selling price, profit, loss, and smart discounts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
