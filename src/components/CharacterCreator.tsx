@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { CharacterConfig, Gender, HairStyle, ShirtStyle, Accessory, PlayerRole } from '../types/game';
 import { sounds } from '../utils/audio';
+import { AvatarGraphic } from './AvatarGraphic';
 
 interface CharacterCreatorProps {
   initialConfig: CharacterConfig;
@@ -132,14 +133,9 @@ export const CharacterCreator: React.FC<CharacterCreatorProps> = ({
           </h1>
         </div>
 
-        {/* Live Character Tag */}
+        {/* Live Character Tag with Graphical Avatar */}
         <div className="flex items-center gap-3 p-2 px-3.5 bg-slate-900/90 border border-slate-700/80 rounded-2xl shadow-xl backdrop-blur-md text-xs">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white shadow-inner"
-            style={{ backgroundColor: config.shirtColor }}
-          >
-            {name.charAt(0).toUpperCase() || 'P'}
-          </div>
+          <AvatarGraphic config={config} size={40} className="shrink-0" />
           <div className="text-left">
             <div className="font-bold text-white flex items-center gap-1.5">
               <span>{name || 'Shopper'}</span>
@@ -148,16 +144,83 @@ export const CharacterCreator: React.FC<CharacterCreatorProps> = ({
               </span>
             </div>
             <div className="text-[11px] text-slate-400">
-              3D Character Customizer
+              {selectedRole === 'buyer' ? '🛒 Buyer' : '🏪 Seller'}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Customization Card (Pinned Right on Desktop so 3D character is fully visible) */}
-      <div className="pointer-events-auto w-full max-w-xl md:max-w-md md:ml-auto bg-slate-900/95 border border-slate-700/80 rounded-2xl p-5 shadow-2xl backdrop-blur-md text-white max-h-[75vh] overflow-y-auto">
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
+      {/* 2-Column Desktop Layout: Left Column has Visual Avatar Card & 3D Stage, Right Column has Controls */}
+      <div className="flex flex-col md:flex-row items-end md:items-center justify-between w-full max-w-6xl mx-auto gap-6 my-auto">
+        {/* Left Column: Visual Character Avatar Portrait & Live Specs */}
+        <div className="pointer-events-auto hidden md:flex flex-col w-72 lg:w-80 bg-slate-900/90 border border-slate-700/80 rounded-2xl p-4 shadow-2xl backdrop-blur-md text-white">
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
+            <div className="flex items-center gap-2">
+              <span className="text-amber-400 text-sm">✨</span>
+              <span className="font-bold text-xs uppercase tracking-wider text-amber-300">
+                Visual Avatar Karakter
+              </span>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold uppercase">
+              Live 2D & 3D
+            </span>
+          </div>
+
+          {/* Visual Avatar Graphic Display */}
+          <div className="flex flex-col items-center justify-center py-2.5">
+            <AvatarGraphic config={config} size={112} className="ring-4 ring-amber-400/40 shadow-2xl" />
+            <span className="font-bold text-white text-base mt-2.5 font-display">{name || 'Alex'}</span>
+            <span className="text-[11px] text-amber-300 font-semibold uppercase bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20 mt-1">
+              {selectedRole === 'buyer' ? '🛒 Buyer (Pembeli)' : '🏪 Seller (Penjual)'}
+            </span>
+          </div>
+
+          <div className="space-y-1.5 text-xs text-slate-300 mt-1 pt-2 border-t border-slate-800">
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Gaya Rambut:</span>
+              <span className="capitalize font-semibold text-slate-200">{config.hairStyle}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Aksesoris:</span>
+              <span className="capitalize font-semibold text-slate-200">{config.accessory}</span>
+            </div>
+            <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
+              <span className="text-slate-400">Baju & Troli:</span>
+              <div className="flex items-center gap-2">
+                <span className="w-4 h-4 rounded-full border border-white/40 shadow-sm" style={{ backgroundColor: config.shirtColor }} title="Warna Baju" />
+                <span className="w-4 h-4 rounded-full border border-white/40 shadow-sm" style={{ backgroundColor: config.trolleyColor }} title="Warna Troli" />
+              </div>
+            </div>
+          </div>
+
+          <p className="text-[11px] text-slate-400 mt-2.5 pt-2 border-t border-slate-800/80 text-center italic">
+            🚶 Karakter 3D juga berdiri dan berputar di panggung sisi kiri.
+          </p>
+        </div>
+
+        {/* Right Column: Customization Controls Card */}
+        <div className="pointer-events-auto w-full max-w-xl md:max-w-md bg-slate-900/95 border border-slate-700/80 rounded-2xl p-5 shadow-2xl backdrop-blur-md text-white max-h-[78vh] overflow-y-auto">
+          {/* Prominent Visual Avatar Header at the start (visible on all screens!) */}
+          <div className="flex items-center gap-3.5 p-3 mb-4 bg-gradient-to-r from-slate-800/90 to-slate-900/90 border border-amber-400/30 rounded-2xl shadow-inner">
+            <AvatarGraphic config={config} size={70} className="shrink-0 ring-2 ring-amber-400/50" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/30">
+                  Visual Avatar
+                </span>
+                <span className="text-[10px] text-slate-400 capitalize">{config.gender}</span>
+              </div>
+              <div className="text-sm font-bold text-white truncate font-display">
+                {name || 'Alex'}
+              </div>
+              <p className="text-[10px] text-slate-400 leading-tight">
+                Live avatar updates automatically as you change options below!
+              </p>
+            </div>
+          </div>
+
+          {/* Navigation Tabs */}
+          <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
           <button
             type="button"
             onClick={() => {
@@ -511,6 +574,7 @@ export const CharacterCreator: React.FC<CharacterCreatorProps> = ({
             <span>Enter Supermarket as {selectedRole === 'buyer' ? 'Buyer' : 'Seller'}</span>
           </button>
         </form>
+        </div>
       </div>
     </div>
   );

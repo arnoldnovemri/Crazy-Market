@@ -10,6 +10,7 @@ interface CrazyMarket3DProps {
   gameMode: 'preview' | 'playing';
   playerRole: PlayerRole;
   playerConfig: CharacterConfig;
+  cartCount?: number;
   onNearStallChange?: (stall: { id: string; name: string } | null) => void;
   virtualDirection?: {
     forward: boolean;
@@ -26,24 +27,29 @@ export const CrazyMarket3D: React.FC<CrazyMarket3DProps> = ({
   gameMode,
   playerRole,
   playerConfig,
+  cartCount = 0,
   onNearStallChange,
   virtualDirection,
   onInteractKeyPressed,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const updatePreviewCharacterRef = useRef<((cfg: CharacterConfig) => void) | null>(null);
+  const updatePlayingCharacterRef = useRef<((cfg: CharacterConfig, role: PlayerRole, cartItems: number) => void) | null>(null);
+  const updateCartItemsRef = useRef<((count: number) => void) | null>(null);
 
   // Store references for continuous animation
   const stateRef = useRef<{
     gameMode: 'preview' | 'playing';
     playerRole: PlayerRole;
     playerConfig: CharacterConfig;
+    cartCount: number;
     virtualDirection?: typeof virtualDirection;
     nearStall: { id: string; name: string } | null;
   }>({
     gameMode,
     playerRole,
     playerConfig,
+    cartCount,
     virtualDirection,
     nearStall: null,
   });
@@ -53,12 +59,20 @@ export const CrazyMarket3D: React.FC<CrazyMarket3DProps> = ({
     stateRef.current.gameMode = gameMode;
     stateRef.current.playerRole = playerRole;
     stateRef.current.playerConfig = playerConfig;
+    stateRef.current.cartCount = cartCount;
     stateRef.current.virtualDirection = virtualDirection;
     // Dynamically update the 3D preview character when player customizes hair/skin/clothes/props!
     if (updatePreviewCharacterRef.current) {
       updatePreviewCharacterRef.current(playerConfig);
     }
-  }, [gameMode, playerRole, playerConfig, virtualDirection]);
+    // Dynamically update the 3D playing character for Third-Person View!
+    if (updatePlayingCharacterRef.current) {
+      updatePlayingCharacterRef.current(playerConfig, playerRole, cartCount);
+    }
+    if (updateCartItemsRef.current) {
+      updateCartItemsRef.current(cartCount);
+    }
+  }, [gameMode, playerRole, playerConfig, cartCount, virtualDirection]);
 
   useEffect(() => {
     const container = mountRef.current;
@@ -134,15 +148,57 @@ export const CrazyMarket3D: React.FC<CrazyMarket3DProps> = ({
     updatePreviewCharacterRef.current = updatePreviewCharacter;
     updatePreviewCharacter(playerConfig);
 
-    // 5. First-Person Rig
-    // Player camera has the first-person shopping cart attached as a child!
-    camera.add(bundle.firstPersonCart);
+    // 5. Playing Character Model for Third-Person View (TPV)
+    bundle.firstPersonCart.visible = false;
     scene.add(camera);
 
-    // Player position & movement kinematics (Buyer)
-    const buyerPos = new THREE.Vector3(0, 1.6, 10); // Start near south entrance
-    // Player position & movement kinematics (Seller)
-    const sellerPos = new THREE.Vector3(0, 1.6, -8.2); // Start behind main counter
+    let playingCharacter: AnimatedCharacterMesh | null = null;
+
+    const updatePlayingCharacter = (cfg: CharacterConfig, role: PlayerRole, cartItems: number) => {
+      if (playingCharacter) {
+        scene.remove(playingCharacter);
+      }
+      playingCharacter = buildCharacter(cfg, role === 'buyer');
+      playingCharacter.visible = stateRef.current.gameMode === 'playing';
+      if (role === 'buyer') {
+        playingCharacter.setCartItemsCount?.(cartItems);
+      }
+      scene.add(playingCharacter);
+    };
+
+    updatePlayingCharacterRef.current = updatePlayingCharacter;
+    updatePlayingCharacter(playerConfig, playerRole, cartCount);
+
+    updateCartItemsRef.current = (count: number) => {
+      if (playingCharacter) {
+        playingCharacter.setCartItemsCount?.(count);
+      }
+    };
+
+    // Customer Shopper NPC standing in front of the counter in Seller mode
+    const customerConfig: CharacterConfig = {
+      name: 'Maya',
+      gender: 'girl',
+      skinTone: '#fed7aa',
+      hairStyle: 'ponytail',
+      hairColor: '#451a03',
+      shirtColor: '#f59e0b',
+      shirtStyle: 'tshirt',
+      pantsColor: '#1e3a8a',
+      shoesColor: '#ffffff',
+      accessory: 'none',
+      trolleyColor: '#06b6d4',
+    };
+    const counterCustomer = buildCharacter(customerConfig, true);
+    counterCustomer.position.set(0, 0, -5.9);
+    counterCustomer.rotation.y = 0; // facing the counter and seller
+    counterCustomer.visible = false;
+    scene.add(counterCustomer);
+
+    // Player ground position (Buyer)
+    const buyerPos = new THREE.Vector3(0, 0, 10); // Start near south entrance on floor (y = 0)
+    // Player ground position (Seller)
+    const sellerPos = new THREE.Vector3(0, 0, -8.2); // Start behind main counter on floor (y = 0)
 
     let playerYaw = 0; // rotation around Y (facing forward north)
     let playerPitch = 0; // look up/down
@@ -245,11 +301,12 @@ export const CrazyMarket3D: React.FC<CrazyMarket3DProps> = ({
       if (currentMode === 'preview') {
         // PREVIEW MODE: Camera views the customized turntable character
         previewPedestal.visible = true;
+        if (playingCharacter) playingCharacter.visible = false;
         bundle.firstPersonCart.visible = false;
 
-        // Frame the custom character so it is prominently visible beside/above customization UI
+        // Frame the custom character prominently on the left side
         const isNarrow = container.clientWidth < 768;
-        const targetX = isNarrow ? 0 : -0.9;
+        const targetX = isNarrow ? 0 : -1.35;
         previewPedestal.position.set(targetX, 0, 0);
         previewPedestal.rotation.y += delta * 0.7;
         if (previewCharacter) {
@@ -259,74 +316,81 @@ export const CrazyMarket3D: React.FC<CrazyMarket3DProps> = ({
         camera.position.set(targetX, 1.45, 3.2);
         camera.lookAt(targetX, 1.05, 0);
       } else {
-        // PLAYING MODE
+        // PLAYING MODE: THIRD-PERSON VIEW (TPV)
         previewPedestal.visible = false;
-        const activePos = currentRole === 'buyer' ? buyerPos : sellerPos;
-        bundle.firstPersonCart.visible = currentRole === 'buyer';
-
-        // Input collection (W/S/A/D, arrows, virtual directional controls)
-        let moveFwd = 0;
-        let moveSide = 0;
-
-        if (keys['KeyW'] || keys['ArrowUp'] || vDir?.forward) moveFwd += 1;
-        if (keys['KeyS'] || keys['ArrowDown'] || vDir?.backward) moveFwd -= 1;
-        if (keys['KeyA'] || keys['ArrowLeft'] || vDir?.left) moveSide -= 1;
-        if (keys['KeyD'] || keys['ArrowRight'] || vDir?.right) moveSide += 1;
-
-        if (vDir?.turnLeft) playerYaw += delta * 2.2;
-        if (vDir?.turnRight) playerYaw -= delta * 2.2;
-
-        isMoving = moveFwd !== 0 || moveSide !== 0;
-
-        if (isMoving) {
-          const speed = currentRole === 'buyer' ? 6.0 : 3.5;
-          const forward = new THREE.Vector3(-Math.sin(playerYaw), 0, -Math.cos(playerYaw));
-          const right = new THREE.Vector3(Math.cos(playerYaw), 0, -Math.sin(playerYaw));
-
-          const moveVec = new THREE.Vector3()
-            .addScaledVector(forward, moveFwd)
-            .addScaledVector(right, moveSide)
-            .normalize()
-            .multiplyScalar(speed * delta);
-
-          activePos.add(moveVec);
-
-          if (currentRole === 'buyer') {
-            // Bounds inside supermarket room
-            activePos.x = Math.max(-16, Math.min(16, activePos.x));
-            activePos.z = Math.max(-16, Math.min(16, activePos.z));
-          } else {
-            // Bounds behind stall counter
-            activePos.x = Math.max(-2.5, Math.min(2.5, activePos.x));
-            activePos.z = Math.max(-9.2, Math.min(-7.2, activePos.z));
-          }
-
-          headBob += delta * 12;
-          stepTimer += delta;
-          if (stepTimer > 0.35) {
-            sounds.playFootstep();
-            if (currentRole === 'buyer') {
-              sounds.playCartWheel();
-            }
-            stepTimer = 0;
-          }
-        }
-
-        // Camera position with head-bob
-        const bobOffset = isMoving ? Math.sin(headBob) * 0.04 : Math.sin(clock.getElapsedTime() * 1.5) * 0.01;
-        camera.position.set(activePos.x, 1.6 + bobOffset, activePos.z);
-
-        camera.rotation.order = 'YXZ';
-        camera.rotation.y = playerYaw;
-        camera.rotation.x = playerPitch;
+        if (playingCharacter) playingCharacter.visible = true;
+        bundle.firstPersonCart.visible = false;
 
         if (currentRole === 'buyer') {
-          bundle.firstPersonCart.position.y = -0.65 + (isMoving ? Math.sin(headBob * 2) * 0.015 : 0);
+          counterCustomer.visible = false;
+          // Input collection (W/S/A/D, arrows, virtual directional controls)
+          let moveFwd = 0;
+          let moveSide = 0;
 
-          // Check proximity to market stalls
+          if (keys['KeyW'] || keys['ArrowUp'] || vDir?.forward) moveFwd += 1;
+          if (keys['KeyS'] || keys['ArrowDown'] || vDir?.backward) moveFwd -= 1;
+          if (keys['KeyA'] || keys['ArrowLeft'] || vDir?.left) moveSide -= 1;
+          if (keys['KeyD'] || keys['ArrowRight'] || vDir?.right) moveSide += 1;
+
+          if (vDir?.turnLeft) playerYaw += delta * 2.2;
+          if (vDir?.turnRight) playerYaw -= delta * 2.2;
+
+          isMoving = moveFwd !== 0 || moveSide !== 0;
+
+          if (isMoving) {
+            const speed = 6.2;
+            const forward = new THREE.Vector3(-Math.sin(playerYaw), 0, -Math.cos(playerYaw));
+            const right = new THREE.Vector3(Math.cos(playerYaw), 0, -Math.sin(playerYaw));
+
+            const moveVec = new THREE.Vector3()
+              .addScaledVector(forward, moveFwd)
+              .addScaledVector(right, moveSide)
+              .normalize()
+              .multiplyScalar(speed * delta);
+
+            buyerPos.add(moveVec);
+
+            // Supermarket room boundaries
+            buyerPos.x = Math.max(-15.5, Math.min(15.5, buyerPos.x));
+            buyerPos.z = Math.max(-15.5, Math.min(15.5, buyerPos.z));
+
+            headBob += delta * 12;
+            stepTimer += delta;
+            if (stepTimer > 0.35) {
+              sounds.playFootstep();
+              sounds.playCartWheel();
+              stepTimer = 0;
+            }
+          }
+
+          // Position player character on floor and animate walking/trolley
+          if (playingCharacter) {
+            playingCharacter.position.set(buyerPos.x, buyerPos.y, buyerPos.z);
+            playingCharacter.rotation.y = playerYaw + Math.PI;
+            playingCharacter.updateAnimation(delta, isMoving);
+          }
+
+          // Third-Person Camera trailing behind buyer character
+          const camDist = 3.6;
+          const camHeight = 2.15;
+          const targetCamX = buyerPos.x + Math.sin(playerYaw) * camDist;
+          const targetCamZ = buyerPos.z + Math.cos(playerYaw) * camDist;
+          const targetCamY = buyerPos.y + camHeight + (isMoving ? Math.sin(headBob) * 0.025 : 0);
+
+          camera.position.set(targetCamX, targetCamY, targetCamZ);
+
+          // Camera looks forward through character and shopping cart
+          const lookTarget = new THREE.Vector3(
+            buyerPos.x - Math.sin(playerYaw) * 1.2,
+            1.25,
+            buyerPos.z - Math.cos(playerYaw) * 1.2
+          );
+          camera.lookAt(lookTarget);
+
+          // Proximity detection for stalls
           let detectedStall: { id: string; name: string } | null = null;
           for (const zone of bundle.stallInteractZones) {
-            const dist = Math.hypot(activePos.x - zone.x, activePos.z - zone.z);
+            const dist = Math.hypot(buyerPos.x - zone.x, buyerPos.z - zone.z);
             if (dist < zone.radius) {
               detectedStall = { id: zone.id, name: zone.name };
               break;
@@ -337,6 +401,39 @@ export const CrazyMarket3D: React.FC<CrazyMarket3DProps> = ({
             stateRef.current.nearStall = detectedStall;
             onNearStallChange?.(detectedStall);
           }
+        } else {
+          // SELLER MODE: Third-Person Over-the-Shoulder View behind the counter
+          let moveSide = 0;
+          if (keys['KeyA'] || keys['ArrowLeft'] || vDir?.left) moveSide -= 1;
+          if (keys['KeyD'] || keys['ArrowRight'] || vDir?.right) moveSide += 1;
+
+          isMoving = moveSide !== 0;
+          if (isMoving) {
+            sellerPos.x += moveSide * 3.5 * delta;
+            sellerPos.x = Math.max(-2.2, Math.min(2.2, sellerPos.x));
+            stepTimer += delta;
+            if (stepTimer > 0.4) {
+              sounds.playFootstep();
+              stepTimer = 0;
+            }
+          }
+
+          if (playingCharacter) {
+            playingCharacter.position.set(sellerPos.x, sellerPos.y, sellerPos.z);
+            playingCharacter.rotation.y = Math.PI; // facing customers at front counter
+            playingCharacter.updateAnimation(delta, isMoving);
+          }
+
+          // Customer shopper waiting at the counter
+          counterCustomer.visible = true;
+          counterCustomer.updateAnimation(delta, false);
+
+          // Camera over the shoulder behind the seller
+          const camX = sellerPos.x - 1.15;
+          const camY = 2.15;
+          const camZ = sellerPos.z - 2.4;
+          camera.position.set(camX, camY, camZ);
+          camera.lookAt(sellerPos.x + 0.3, 1.25, sellerPos.z + 2.5);
         }
       }
 

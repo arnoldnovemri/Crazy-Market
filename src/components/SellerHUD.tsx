@@ -248,7 +248,18 @@ export const SellerHUD: React.FC<SellerHUDProps> = ({
         </div>
       </div>
 
-      {/* Customer Order Speech Bubble (Pinned in First-Person View) */}
+      {/* Store Waiting Atmosphere Status */}
+      <div className="fixed top-20 left-4 z-20 pointer-events-auto hidden sm:block">
+        <div className="flex items-center gap-2.5 px-3.5 py-2 bg-slate-900/90 border border-emerald-500/40 rounded-xl shadow-lg backdrop-blur-md text-xs text-white">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+          <div>
+            <span className="font-bold text-emerald-300 block text-[11px]">Toko Sedang Buka</span>
+            <span className="text-[10px] text-slate-300">Karakter menunggu di meja kasir melayani pembeli</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Customer Order Speech Bubble (In front of Seller Counter) */}
       <div className="fixed top-20 left-1/2 -translate-x-1/2 z-20 w-[95%] max-w-xl pointer-events-auto">
         <div className="bg-slate-900/95 border-2 border-amber-400/80 rounded-2xl p-4 shadow-2xl backdrop-blur-md">
           <div className="flex items-start gap-3">
@@ -258,7 +269,9 @@ export const SellerHUD: React.FC<SellerHUDProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-sm text-white">{round.customerName}</span>
-                <span className="text-[11px] text-slate-400">Customer #{currentRoundIdx + 1}</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">
+                  Pembeli #{currentRoundIdx + 1} di Depan Toko
+                </span>
               </div>
               <p className="text-xs text-slate-200 mt-1 italic leading-relaxed">
                 "{round.customerGreeting}"

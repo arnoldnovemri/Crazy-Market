@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ArrowUp,
   ArrowDown,
@@ -8,6 +8,8 @@ import {
   RotateCcw,
   ShoppingBag,
   Calculator,
+  EyeOff,
+  Gamepad2,
 } from 'lucide-react';
 import { sounds } from '../utils/audio';
 
@@ -26,12 +28,86 @@ export const MovementActionControls: React.FC<MovementActionControlsProps> = ({
   role,
   isNearStall = false,
 }) => {
+  // In Seller mode, controls are hidden by default to keep the cash register clean
+  const [isHidden, setIsHidden] = useState<boolean>(role === 'seller');
+
+  if (isHidden) {
+    return (
+      <div className="fixed bottom-6 left-4 right-4 z-20 flex items-end justify-between pointer-events-none select-none">
+        {/* Minimized Pill Button */}
+        <div className="pointer-events-auto">
+          <button
+            onClick={() => {
+              sounds.playClick();
+              setIsHidden(false);
+            }}
+            className="flex items-center gap-2 px-3.5 py-2.5 bg-slate-900/90 hover:bg-slate-850 border border-slate-700/80 rounded-xl text-xs font-bold text-amber-300 shadow-xl backdrop-blur-md transition-all hover:scale-105 active:scale-95"
+            title="Tampilkan kembali kontrol arah"
+          >
+            <Gamepad2 className="w-4 h-4 text-amber-400" />
+            <span>Tampilkan Kontrol</span>
+          </button>
+        </div>
+
+        {/* Right Pad Action Buttons "Ambil" & "Hitung" always handy */}
+        <div className="pointer-events-auto flex items-center gap-2.5 p-1.5 bg-slate-900/80 border border-slate-700/80 rounded-2xl shadow-2xl backdrop-blur-md">
+          <button
+            onClick={() => {
+              sounds.playClick();
+              onAmbil();
+            }}
+            className={`flex flex-col items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 ${
+              isNearStall || role === 'seller'
+                ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-slate-950 hover:brightness-110'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600'
+            }`}
+            title={role === 'buyer' ? 'Ambil / Belanja Barang di Toko' : 'Ambil Pesanan Pelanggan'}
+          >
+            <ShoppingBag className="w-5 h-5 mb-0.5" />
+            <span>Ambil</span>
+          </button>
+
+          <button
+            onClick={() => {
+              sounds.playClick();
+              onHitung();
+            }}
+            className="flex flex-col items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-xl font-black text-xs uppercase tracking-wider bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 hover:brightness-110 transition-all shadow-md active:scale-95"
+            title={role === 'buyer' ? 'Hitung Total & Rumus Aritmetika Sosial' : 'Hitung Kasir & Audit Untung/Rugi'}
+          >
+            <Calculator className="w-5 h-5 mb-0.5" />
+            <span>Hitung</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed bottom-6 left-4 right-4 z-20 flex items-end justify-between pointer-events-none select-none">
       {/* Left Pad: Directional Movement (Depan, Belakang, Kiri, Kanan, Putar) */}
-      <div className="pointer-events-auto flex flex-col items-center gap-1.5 p-2 bg-slate-900/80 border border-slate-700/80 rounded-2xl shadow-2xl backdrop-blur-md">
+      <div className="pointer-events-auto flex flex-col items-center gap-1.5 p-2.5 bg-slate-900/85 border border-slate-700/80 rounded-2xl shadow-2xl backdrop-blur-md animate-in fade-in duration-200">
+        {/* Header bar with Hide button */}
+        <div className="flex items-center justify-between w-full px-1 pb-1 border-b border-slate-800/80">
+          <div className="flex items-center gap-1 text-[10px] font-bold text-slate-300 uppercase tracking-wide">
+            <Gamepad2 className="w-3.5 h-3.5 text-amber-400" />
+            <span>Kontrol Gerak</span>
+          </div>
+          <button
+            onClick={() => {
+              sounds.playClick();
+              setIsHidden(true);
+            }}
+            className="flex items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-amber-300 bg-slate-800/80 hover:bg-slate-750 px-2 py-0.5 rounded-md transition-colors"
+            title="Sembunyikan tombol kontrol"
+          >
+            <EyeOff className="w-3 h-3" />
+            <span>Hide</span>
+          </button>
+        </div>
+
         {/* Top row: Turn Left, Forward (Depan), Turn Right */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 pt-0.5">
           <button
             onTouchStart={(e) => { e.preventDefault(); onDirectionPress('turnLeft', true); }}
             onTouchEnd={(e) => { e.preventDefault(); onDirectionPress('turnLeft', false); }}

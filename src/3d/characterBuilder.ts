@@ -4,6 +4,7 @@ import { CharacterConfig } from '../types/game';
 export interface AnimatedCharacterMesh extends THREE.Group {
   updateAnimation: (delta: number, isMoving: boolean) => void;
   setTrolleyVisible: (visible: boolean) => void;
+  setCartItemsCount?: (count: number, itemIds?: string[]) => void;
 }
 
 export function buildShoppingTrolley(color: string = '#f97316'): THREE.Group {
@@ -128,6 +129,46 @@ export function buildShoppingTrolley(color: string = '#f97316'): THREE.Group {
   );
   bumper.position.set(0, 0.72, 0.44);
   trolley.add(bumper);
+
+  // Dynamic 3D grocery items group inside the basket
+  const basketItemsGroup = new THREE.Group();
+  basketItemsGroup.name = 'BasketItemsGroup';
+  basketItemsGroup.position.set(0, 0.65, 0);
+  trolley.add(basketItemsGroup);
+
+  // Update visual products in cart
+  (trolley as any).updateItems = (count: number) => {
+    while (basketItemsGroup.children.length > 0) {
+      basketItemsGroup.remove(basketItemsGroup.children[0]);
+    }
+    const itemColors = [0xef4444, 0x10b981, 0x3b82f6, 0xf59e0b, 0x8b5cf6, 0xec4899, 0x14b8a6, 0xf97316];
+    const totalToRender = Math.min(count, 14);
+    for (let i = 0; i < totalToRender; i++) {
+      const col = itemColors[i % itemColors.length];
+      const mat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.35, metalness: 0.1 });
+      let mesh: THREE.Mesh;
+      if (i % 3 === 0) {
+        // Cereal or stationery box
+        mesh = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.22, 0.12), mat);
+      } else if (i % 3 === 1) {
+        // Can or bottle
+        mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.2, 10), mat);
+      } else {
+        // Fresh fruit / snack
+        mesh = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 10), mat);
+      }
+      mesh.castShadow = true;
+      const row = Math.floor(i / 3);
+      const colIdx = i % 3;
+      const x = (colIdx - 1) * 0.2 + (Math.sin(i * 1.5) * 0.03);
+      const y = 0.08 + Math.floor(i / 6) * 0.14;
+      const z = (row % 2 - 0.5) * 0.3 + (Math.cos(i * 1.5) * 0.03);
+      mesh.position.set(x, y, z);
+      mesh.rotation.y = (i * 0.45);
+      mesh.rotation.z = (Math.sin(i * 2) * 0.1);
+      basketItemsGroup.add(mesh);
+    }
+  };
 
   return trolley;
 }
@@ -371,19 +412,36 @@ export function buildCharacter(config: CharacterConfig, withTrolley: boolean = t
       if (!trolley.visible) {
         leftArm.rotation.x = -legAngle * 0.8;
         rightArm.rotation.x = legAngle * 0.8;
+        headGroup.rotation.y = 0;
+        pelvis.rotation.z = 0;
       } else {
         // Subtle cart rattle
         trolley.position.y = Math.sin(walkCycle * 4) * 0.01;
       }
     } else {
-      // Idle breathing
+      // Idle breathing & waiting poses
       walkCycle += delta * 2;
       leftLeg.rotation.x = 0;
       rightLeg.rotation.x = 0;
       pelvis.position.y = 0.95 + Math.sin(walkCycle) * 0.015;
+
       if (!trolley.visible) {
-        leftArm.rotation.x = 0;
-        rightArm.rotation.x = 0;
+        // SELLER WAITING AT STORE COUNTER ANIMATION:
+        // Posed arms resting on counter with subtle breathing motions
+        leftArm.rotation.x = Math.PI / 4.2 + Math.sin(walkCycle * 1.5) * 0.02;
+        leftArm.rotation.y = -Math.PI / 14;
+        rightArm.rotation.x = Math.PI / 4.2 + Math.cos(walkCycle * 1.5) * 0.02;
+        rightArm.rotation.y = Math.PI / 14;
+
+        // Looking around the store patiently waiting for customers
+        headGroup.rotation.y = Math.sin(walkCycle * 0.45) * 0.35;
+        headGroup.rotation.x = Math.sin(walkCycle * 0.9) * 0.04;
+
+        // Gentle weight shifting while standing at counter
+        pelvis.rotation.z = Math.sin(walkCycle * 0.35) * 0.035;
+      } else {
+        headGroup.rotation.y = 0;
+        pelvis.rotation.z = 0;
       }
     }
   };
@@ -396,6 +454,12 @@ export function buildCharacter(config: CharacterConfig, withTrolley: boolean = t
     } else {
       leftArm.rotation.x = 0;
       rightArm.rotation.x = 0;
+    }
+  };
+
+  root.setCartItemsCount = (count: number) => {
+    if ((trolley as any).updateItems) {
+      (trolley as any).updateItems(count);
     }
   };
 

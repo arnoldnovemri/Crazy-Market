@@ -132,6 +132,21 @@ export function buildSupermarketScene(playerConfig: CharacterConfig): Supermarke
       bulbGlow.position.set(x, 4.4, z);
       scene.add(bulbGlow);
     }
+
+    // Overhead colorful pennant flags along beam
+    const flagColors = [0xef4444, 0xf59e0b, 0x10b981, 0x06b6d4, 0x8b5cf6, 0xec4899];
+    for (let fx = -14; fx <= 14; fx += 2.0) {
+      const flagGeom = new THREE.ConeGeometry(0.22, 0.45, 3);
+      flagGeom.rotateZ(Math.PI);
+      const flagMat = new THREE.MeshStandardMaterial({
+        color: flagColors[Math.abs(Math.floor(fx + z)) % flagColors.length],
+        side: THREE.DoubleSide,
+        roughness: 0.5,
+      });
+      const flag = new THREE.Mesh(flagGeom, flagMat);
+      flag.position.set(fx, 5.5, z);
+      scene.add(flag);
+    }
   }
 
   // 5. Build the 4 Market Stalls
@@ -265,6 +280,47 @@ export function buildSupermarketScene(playerConfig: CharacterConfig): Supermarke
     clerk.rotation.y = 0;
     stallGroup.add(clerk);
 
+    // Fun Balloon Cluster at stall corner
+    const balloonColors = [stall.accentColor, '#f43f5e', '#38bdf8', '#fbbf24'];
+    const balloons = new THREE.Group();
+    balloonColors.forEach((colorHex, bIdx) => {
+      const bGeom = new THREE.SphereGeometry(0.24, 12, 12);
+      bGeom.scale(1, 1.25, 1);
+      const bMesh = new THREE.Mesh(
+        bGeom,
+        new THREE.MeshStandardMaterial({ color: new THREE.Color(colorHex), roughness: 0.2, metalness: 0.1 })
+      );
+      const bAngle = (bIdx / balloonColors.length) * Math.PI * 2;
+      bMesh.position.set(Math.cos(bAngle) * 0.2, 2.5 + (bIdx % 2) * 0.25, Math.sin(bAngle) * 0.2);
+      balloons.add(bMesh);
+
+      const strMesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.005, 0.005, 1.5, 4),
+        new THREE.MeshBasicMaterial({ color: 0x94a3b8 })
+      );
+      strMesh.position.set(bMesh.position.x * 0.5, 1.7, bMesh.position.z * 0.5);
+      balloons.add(strMesh);
+    });
+    balloons.position.set(2.2, 0, 0.9);
+    stallGroup.add(balloons);
+
+    // Floating 3D Arcade Promotion Badge above stall
+    const promoTitles: Record<string, string> = {
+      stall_fresh_mart: '🍎 25% OFF SALE!',
+      stall_discount_depot: '🔥 BUY 1 GET 1 FREE!',
+      stall_sweet_shack: '✨ DOUBLE DISCOUNT!',
+      stall_campus_hub: '📚 25% STUDENT DEAL!',
+    };
+    const promoTitle = promoTitles[stall.id] || '⚡ SPECIAL PROMO ⚡';
+    const promoTex = createStallSignTexture(promoTitle, '#f59e0b', '#0f172a');
+    const floatingBadge = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.2, 0.75),
+      new THREE.MeshBasicMaterial({ map: promoTex, side: THREE.DoubleSide })
+    );
+    floatingBadge.position.set(0, 4.6, 0);
+    floatingBadge.name = `floating_promo_${stall.id}`;
+    stallGroup.add(floatingBadge);
+
     // Glowing interaction ring on the floor in front of stall
     const ringGeom = new THREE.RingGeometry(1.6, 1.85, 32);
     const ringMat = new THREE.MeshBasicMaterial({
@@ -392,7 +448,18 @@ export function buildSupermarketScene(playerConfig: CharacterConfig): Supermarke
   firstPersonCart.rotation.y = Math.PI; // Face forward in camera direction
 
   // Animation update function
+  let animClock = 0;
   const update = (delta: number) => {
+    animClock += delta;
+
+    // Animate floating promo badges
+    scene.traverse((obj) => {
+      if (obj.name && obj.name.startsWith('floating_promo_')) {
+        obj.position.y = 4.6 + Math.sin(animClock * 2.5) * 0.12;
+        obj.rotation.y = Math.sin(animClock * 1.5) * 0.15;
+      }
+    });
+
     // Update NPC shoppers running along their paths
     npcShoppers.forEach((npc) => {
       const target = npc.path[npc.currentIdx];

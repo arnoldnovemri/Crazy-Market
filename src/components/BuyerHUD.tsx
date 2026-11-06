@@ -160,6 +160,60 @@ export const BuyerHUD: React.FC<BuyerHUDProps> = ({
         </div>
       </div>
 
+      {/* On-Screen Live Cart Display Tray (Always visible on screen so player sees items accumulating!) */}
+      <div className="fixed top-18 right-4 z-20 w-64 sm:w-72 pointer-events-auto">
+        <div className="bg-slate-900/90 border border-slate-700/80 rounded-2xl p-3 shadow-2xl backdrop-blur-md text-white">
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
+            <div className="flex items-center gap-1.5">
+              <ShoppingBag className="w-4 h-4 text-amber-400" />
+              <span className="font-bold text-xs uppercase tracking-wider text-amber-300">
+                Isi Keranjang ({buyerState.cartItems.reduce((acc, i) => acc + i.qty, 0)})
+              </span>
+            </div>
+            <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+              {formatIDR(buyerState.cartItems.reduce((acc, i) => acc + i.unitPrice * i.qty, 0))}
+            </span>
+          </div>
+
+          {/* Cart Items List */}
+          {buyerState.cartItems.length === 0 ? (
+            <div className="py-2.5 px-2 text-center text-slate-400 text-xs">
+              <span className="text-xl block mb-1">🛒</span>
+              <p className="text-[11px] text-slate-400 leading-tight">
+                Keranjang masih kosong. Hitung barang di toko untuk mengisi trolimu!
+              </p>
+            </div>
+          ) : (
+            <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
+              {buyerState.cartItems.map((cart, idx) => {
+                const prod = PRODUCT_CATALOG[cart.itemId];
+                return (
+                  <div
+                    key={`${cart.itemId}_${idx}`}
+                    className="flex items-center justify-between p-1.5 px-2 bg-slate-800/80 border border-slate-700/80 rounded-xl text-xs hover:border-amber-400/40 transition-all animate-in zoom-in-95 duration-150"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-base shrink-0">{prod.emoji}</span>
+                      <div className="min-w-0">
+                        <div className="font-bold text-slate-100 truncate text-[11px]">
+                          {prod.name}
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate">
+                          {cart.stallName} · <span className="text-amber-300 font-semibold">{cart.qty}x</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0 font-mono text-[11px] font-bold text-emerald-400">
+                      {formatIDR(cart.unitPrice * cart.qty)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Proximity Interaction Prompt Banner */}
       {nearStall && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-30 animate-bounce">

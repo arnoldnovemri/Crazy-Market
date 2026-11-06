@@ -84,6 +84,7 @@ export default function App() {
     setGameMode('playing');
     setIsPaused(false);
     setIsEnded(false);
+    sounds.startMarketAmbience();
 
     // Reset buyer state
     setBuyerState({
@@ -262,6 +263,7 @@ export default function App() {
         gameMode={gameMode}
         playerRole={playerRole}
         playerConfig={characterConfig}
+        cartCount={buyerState.cartItems.reduce((acc, item) => acc + item.qty, 0)}
         onNearStallChange={setNearStall}
         virtualDirection={virtualDirection}
         onInteractKeyPressed={handleInteractKey}
